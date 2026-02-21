@@ -119,17 +119,16 @@ public final class UNUserNotificationCenter {
         }
         
         for (key, value) in request.content.userInfo {
-            let k = key.toString()
             if let s = value as? String {
-                dataBuilder.putString(k, s)
+                dataBuilder.putString(key.toString(), s)
             } else if let b = value as? Bool {
-                dataBuilder.putBoolean(k, b)
+                dataBuilder.putBoolean(key.toString(), b)
             } else if let i = value as? Int {
-                dataBuilder.putInt(k, i)
+                dataBuilder.putInt(key.toString(), i)
             } else if let d = value as? Double {
-                dataBuilder.putDouble(k, d)
+                dataBuilder.putDouble(key.toString(), d)
             } else {
-                dataBuilder.putString(k, value.toString())
+                dataBuilder.putString(key.toString(), value.toString())
             }
         }
         
