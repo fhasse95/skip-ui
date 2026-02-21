@@ -113,8 +113,24 @@ public final class UNUserNotificationCenter {
             .putString("title", request.content.title)
             .putString("body", request.content.body)
             .putInt("id", request.identifier.hashValue)
+        
+        if let imageAttachment = request.content.attachments.first(where: { $0.type == "public.image" }) {
+            dataBuilder.putString("image_url", imageAttachment.url.absoluteString)
+        }
+        
         for (key, value) in request.content.userInfo {
-            dataBuilder.putString(key.toString(), value.toString())
+            let k = key.toString()
+            if let s = value as? String {
+                dataBuilder.putString(k, s)
+            } else if let b = value as? Bool {
+                dataBuilder.putBoolean(k, b)
+            } else if let i = value as? Int {
+                dataBuilder.putInt(k, i)
+            } else if let d = value as? Double {
+                dataBuilder.putDouble(k, d)
+            } else {
+                dataBuilder.putString(k, value.toString())
+            }
         }
         
         // Get the next trigger date (if any).
@@ -216,7 +232,7 @@ public final class UNUserNotificationCenter {
         let ids = java.util.HashSet<String>(preferences.getStringSet("ids", java.util.HashSet<String>()) ?? java.util.HashSet<String>())
         
         // Get the notification manager.
-        let notificationManager = activity.getSystemService(android.content.Context.NOTIFICATION_SERVICE) as! android.app.NotificationManager
+        let notificationManager = activity.getSystemService(Context.NOTIFICATION_SERVICE) as! NotificationManager
         
         // Cancel all delivered notifications using the notification manager.
         let now = System.currentTimeMillis()
@@ -808,45 +824,77 @@ public class UNNotificationSettings : NSObject {
     }
 }
 
-#endif
-
 #if SKIP
-
 public class NotificationWorker : Worker {
-
     public init(context: Context, params: WorkerParameters) {
         super.init(context, params)
     }
-
+    
     public override func doWork() -> ListenableWorker.Result {
-        let title = getInputData().getString("title") ?? ""
-        let body = getInputData().getString("body") ?? ""
-        let notificationId = getInputData().getInt("id", 0)
-        let ctx = getApplicationContext()
-
-        let channelID = "tools.skip.firebase.messaging"
-        let manager = ctx.getSystemService(Context.NOTIFICATION_SERVICE) as! NotificationManager
-
-        if android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O {
-            let appName = ctx.getApplicationInfo().loadLabel(ctx.getPackageManager()).toString()
-            let channel = NotificationChannel(channelID, appName, NotificationManager.IMPORTANCE_DEFAULT)
-            manager.createNotificationChannel(channel)
+        // Get the data which should be displayed in the notification.
+        let inputData = getInputData()
+        let id = inputData.getInt("id", 0)
+        let title = inputData.getString("title") ?? ""
+        let body = inputData.getString("body") ?? ""
+        let imageAttachmentUrl = inputData.getString("image_url")
+        
+        let context = getApplicationContext()
+        let intent = context.getPackageManager().getLaunchIntentForPackage(context.getPackageName())
+        intent?.addFlags(android.content.Intent.FLAG_ACTIVITY_CLEAR_TOP)
+        
+        let bundle = android.os.Bundle()
+        let allData = inputData.keyValueMap
+        for (key, value) in allData where key != "title" && key != "body" && key != "id" && key != "image_url" {
+            if let s = value as? String {
+                bundle.putString(key, s)
+            } else if let b = value as? Bool {
+                bundle.putBoolean(key, b)
+            } else if let i = value as? Int {
+                bundle.putInt(key, i)
+            } else if let d = value as? Double {
+                bundle.putDouble(key, d)
+            } else {
+                bundle.putString(key, value.toString())
+            }
         }
-
-        var resId = ctx.getResources().getIdentifier("ic_notification", "drawable", ctx.getPackageName())
-        if resId == 0 {
-            resId = ctx.getResources().getIdentifier("ic_launcher", "mipmap", ctx.getPackageName())
+        intent?.putExtras(bundle)
+        
+        // Create the notification channel.
+        let channelID = "tools.skip.firebase.messaging" // Match AndroidManifest.xml
+        let manager = context.getSystemService(Context.NOTIFICATION_SERVICE) as! NotificationManager
+        if Build.VERSION.SDK_INT >= Build.VERSION_CODES.O {
+            let appName = context.getApplicationInfo().loadLabel(context.getPackageManager()).toString()
+            manager.createNotificationChannel(NotificationChannel(channelID, appName, NotificationManager.IMPORTANCE_DEFAULT))
         }
-
-        let builder = NotificationCompat.Builder(ctx, channelID)
+        
+        // Build the notification.
+        let pendingIntent = PendingIntent.getActivity(context, id, intent, PendingIntent.FLAG_IMMUTABLE | PendingIntent.FLAG_UPDATE_CURRENT)
+        let builder = NotificationCompat.Builder(context, channelID)
             .setContentTitle(title)
             .setContentText(body)
-            .setSmallIcon(resId)
             .setAutoCancel(true)
-
-        manager.notify(notificationId, builder.build())
-
+            .setContentIntent(pendingIntent)
+        
+        // Update the notification icon.
+        if let url = imageAttachmentUrl {
+            builder.setSmallIcon(IconCompat.createWithContentUri(url))
+        } else {
+            // Notification icon: must be a resource with transparent background and white logo
+            // eg: to be used as a default icon must be added in the AndroidManifest.xml with the following code:
+            // <meta-data
+            // android:name="com.google.firebase.messaging.default_notification_icon"
+            // android:resource="@drawable/ic_notification" />
+            var resId = context.getResources().getIdentifier("ic_notification", "drawable", context.getPackageName())
+            if resId == 0 {
+                resId = context.getResources().getIdentifier("ic_launcher", "mipmap", context.getPackageName())
+            }
+            builder.setSmallIcon(IconCompat.createWithResource(context, resId))
+        }
+        
+        // Display the notification.
+        manager.notify(id, builder.build())
         return ListenableWorker.Result.success()
     }
 }
+#endif
 #endif
