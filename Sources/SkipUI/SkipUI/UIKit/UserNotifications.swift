@@ -25,6 +25,7 @@ import androidx.work.Data
 import androidx.work.Worker
 import androidx.work.WorkerParameters
 import androidx.work.ListenableWorker
+import java.util.HashSet
 import java.util.concurrent.TimeUnit
 import kotlin.random.Random
 #endif
@@ -137,6 +138,9 @@ public final class UNUserNotificationCenter {
                        (request.trigger as? UNTimeIntervalNotificationTrigger)?.nextTriggerDate()
         let delayMillis = nextDate != nil ? max(0, nextDate!.currentTimeMillis - System.currentTimeMillis()) : 0
         
+        // Get the work manager.
+        let workManager = WorkManager.getInstance(activity)
+        
         // Add the notification work request to the work manager.
         let workData = dataBuilder.build()
         let workRequest = OneTimeWorkRequestBuilder<NotificationWorker>()
@@ -144,14 +148,14 @@ public final class UNUserNotificationCenter {
             .setInputData(workData)
             .addTag(request.identifier)
             .build()
-        WorkManager.getInstance(activity).enqueue(workRequest)
+        workManager.enqueue(workRequest)
         
         // Add the notification identifier to the shared preferences to be able to cancel it later.
         if let triggerMillis = nextDate?.currentTimeMillis {
-            let prefs = activity.getSharedPreferences("notifications", Context.MODE_PRIVATE)
-            let ids = java.util.HashSet<String>(prefs.getStringSet("ids", java.util.HashSet<String>()) ?? java.util.HashSet<String>())
+            let preferences = activity.getSharedPreferences("notifications", Context.MODE_PRIVATE)
+            let ids = HashSet<String>(preferences.getStringSet("ids", HashSet<String>()) ?? HashSet<String>())
             ids.add(request.identifier)
-            prefs.edit()
+            preferences.edit()
                 .putStringSet("ids", ids)
                 .putLong("date_" + request.identifier, triggerMillis)
                 .apply()
@@ -176,7 +180,7 @@ public final class UNUserNotificationCenter {
         // Get all notification identifiers from the shared preferences.
         let preferences = activity.getSharedPreferences("notifications", Context.MODE_PRIVATE)
         let editor = preferences.edit()
-        let ids = java.util.HashSet<String>(preferences.getStringSet("ids", java.util.HashSet<String>()) ?? java.util.HashSet<String>())
+        let ids = HashSet<String>(preferences.getStringSet("ids", HashSet<String>()) ?? HashSet<String>())
         
         // Get the work manager.
         let workManager = WorkManager.getInstance(activity)
@@ -228,7 +232,7 @@ public final class UNUserNotificationCenter {
         // Get all notification identifiers from the shared preferences.
         let preferences = activity.getSharedPreferences("notifications", Context.MODE_PRIVATE)
         let editor = preferences.edit()
-        let ids = java.util.HashSet<String>(preferences.getStringSet("ids", java.util.HashSet<String>()) ?? java.util.HashSet<String>())
+        let ids = HashSet<String>(preferences.getStringSet("ids", HashSet<String>()) ?? HashSet<String>())
         
         // Get the notification manager.
         let notificationManager = activity.getSystemService(Context.NOTIFICATION_SERVICE) as! NotificationManager
@@ -860,10 +864,10 @@ public class NotificationWorker : Worker {
         
         // Create the notification channel.
         let channelID = "tools.skip.firebase.messaging" // Match AndroidManifest.xml
-        let manager = context.getSystemService(Context.NOTIFICATION_SERVICE) as! NotificationManager
+        let notificationManager = context.getSystemService(Context.NOTIFICATION_SERVICE) as! NotificationManager
         if Build.VERSION.SDK_INT >= Build.VERSION_CODES.O {
             let appName = context.getApplicationInfo().loadLabel(context.getPackageManager()).toString()
-            manager.createNotificationChannel(NotificationChannel(channelID, appName, NotificationManager.IMPORTANCE_DEFAULT))
+            notificationManager.createNotificationChannel(NotificationChannel(channelID, appName, NotificationManager.IMPORTANCE_DEFAULT))
         }
         
         // Build the notification.
@@ -891,7 +895,7 @@ public class NotificationWorker : Worker {
         }
         
         // Display the notification.
-        manager.notify(id, builder.build())
+        notificationManager.notify(id, builder.build())
         return ListenableWorker.Result.success()
     }
 }
