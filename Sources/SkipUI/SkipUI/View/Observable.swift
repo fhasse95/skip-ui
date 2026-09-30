@@ -1,7 +1,11 @@
 // Copyright 2023–2026 Skip
 // SPDX-License-Identifier: MPL-2.0
-#if !SKIP_BRIDGE
+#if canImport(Combine)
 import Combine
+#elseif canImport(SkipModel)
+import SkipModel
+#endif
+
 #if SKIP
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.remember
@@ -44,11 +48,9 @@ public struct SubscriptionView<PublisherType, Content> : View where /* Publisher
         self.action = action
     }
 
-    #if !SKIP
+    #if !SKIP && !SKIP_BRIDGE
     public var body: some View {
         stubView()
     }
     #endif
 }
-
-#endif

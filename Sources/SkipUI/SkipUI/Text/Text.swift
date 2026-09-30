@@ -905,6 +905,11 @@ extension View {
         #endif
     }
 
+    // SKIP @bridge
+    public func bridgedTruncationMode(rawValue: Int) -> any View {
+        return truncationMode(Text.TruncationMode(rawValue: rawValue) ?? .tail)
+    }
+
     public func underline(_ isActive: Bool = true, pattern: Text.LineStyle.Pattern = .solid, color: Color? = nil) -> some View {
         #if SKIP
         return textEnvironment(for: self) { $0.isUnderline = isActive }
