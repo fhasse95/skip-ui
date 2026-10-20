@@ -88,9 +88,6 @@ import org.burnoutcrew.reorderable.reorderable
 import struct CoreGraphics.CGFloat
 #endif
 
-/// Corner radius for list sections.
-let listSectionCornerRadius = 8.0
-
 #if SKIP
 /// Discrete rest positions for a row's swipe gesture. Used as the value
 /// type for the row's AnchoredDraggableState.
@@ -1325,7 +1322,7 @@ public final class List : View, Renderable {
     @Composable private func RenderSectionHeader(content: Renderable, context: ComposeContext, modifier: Modifier = Modifier, styling: ListStyling, isTop: Bool) {
         let backgroundColor = BackgroundColor(styling: styling, isItem: false)
         let containerModifier = modifier.fillMaxWidth()
-            .heightIn(min: styling.style == .plain ? 0.dp : listSectionCornerRadius.dp)
+            .heightIn(min: styling.style == .plain ? 0.dp : styling.cornerRadius.dp)
             .zIndex(styling.style == .plain ? Float(0.5) : Float(-0.5))
             .background(styling.style == .plain ? backgroundColor : androidx.compose.ui.graphics.Color.Transparent)
             .then(context.modifier)
@@ -1358,7 +1355,7 @@ public final class List : View, Renderable {
             }
             RenderItem(content: footerContent, level: 0, context: context, modifier: modifier, styling: styling, isItem: false)
         } else {
-            let containerModifier = modifier.heightIn(min: listSectionCornerRadius.dp)
+            let containerModifier = modifier.heightIn(min: styling.cornerRadius.dp)
                 .zIndex(Float(-0.5))
                 .then(context.modifier)
             let contentModifier = Modifier.fillMaxWidth().padding(horizontal: Self.horizontalItemInset.dp, vertical: Self.verticalItemInset.dp)
